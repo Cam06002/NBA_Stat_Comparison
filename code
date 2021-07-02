@@ -1,0 +1,98 @@
+# Project: Comparing stats for the Western Conference Finals
+
+import pandas as pd
+from nba_api.stats.static import teams
+from nba_api.stats.endpoints import leaguegamefinder
+import matplotlib.pyplot as plt
+
+# getting the ID's for Teams
+
+teams = teams.get_teams()
+
+LAC = [x for x in teams if x['full_name'] == 'Los Angeles Clippers'][0]
+LAC_id = LAC['id']
+LAC_Name = LAC['full_name']
+
+PHX = [x for x in teams if x['full_name'] == 'Phoenix Suns'][0]
+PHX_id = PHX['id']
+PHX_Name = PHX['full_name']
+
+# get stats for LAC vs PHX playoff games
+LAC_games = leaguegamefinder.LeagueGameFinder(team_id_nullable=LAC_id).get_data_frames()[0]
+PHX_games = leaguegamefinder.LeagueGameFinder(team_id_nullable=PHX_id).get_data_frames()[0]
+
+# find parameters I want to use to compare (commented out for final run)
+# for col in LAC_games:
+#   print(col)
+
+# modify and sort data sets selecting only games played in playoff series
+
+sel_cols = [
+    'GAME_ID', 'TEAM_ABBREVIATION', 'MATCHUP', 'WL', 'FG_PCT', 'FT_PCT',
+    'REB', 'AST', 'STL', 'BLK', 'TOV', 'PF', 'PLUS_MINUS'
+]
+
+df_LAC = pd.DataFrame(LAC_games.head(6)[sel_cols])
+df_PHX = pd.DataFrame(PHX_games.head(6)[sel_cols])
+
+df_LAC = df_LAC.rename(columns={'TEAM_ABBREVIATION': 'TEAM', 'MATCHUP': 'LOC', 'PLUS_MINUS': '+-'})
+df_PHX = df_PHX.rename(columns={'TEAM_ABBREVIATION': 'TEAM', 'MATCHUP': 'LOC', 'PLUS_MINUS': '+-'})
+
+df_LAC.loc[df_LAC.LOC == "LAC @ PHX", "LOC"] = "AWAY"
+df_LAC.loc[df_LAC.LOC == "LAC vs. PHX", "LOC"] = "HOME"
+
+df_PHX.loc[df_PHX.LOC == "PHX @ LAC", "LOC"] = "AWAY"
+df_PHX.loc[df_PHX.LOC == "PHX vs. LAC", "LOC"] = "HOME"
+
+# creating value assignments to statistical measures
+
+pos_stat = ['FG_PCT', 'FT_PCT', 'REB', 'AST', 'STL', 'BLK', '+-']
+neg_stat = ['TOV', 'PF']
+
+# iterating through columns to assign unique column names before merging
+
+for col in df_PHX.columns:
+    df_PHX = df_PHX.rename(columns={col: col + "_PHX"})
+
+for col in df_LAC.columns:
+    df_LAC = df_LAC.rename(columns={col: col + "_LAC"})
+
+# merging df and adding point counter to compare stats
+
+merge_df = pd.merge(df_PHX, df_LAC, left_index=True, right_index=True)
+merge_df['LAC_Points'] = 0
+merge_df['PHX_Points'] = 0
+
+# iterating through stats to compare and assign point values
+
+for col in pos_stat:
+    phx_col = col + '_PHX'
+    lac_col = col + '_LAC'
+    for index, row in merge_df.iterrows():
+        if row[lac_col] > row[phx_col]:
+            merge_df.at[index, 'LAC_Points'] += 1
+        else:
+            merge_df.at[index, 'PHX_Points'] += 1
+
+for col in neg_stat:
+    phx_col = col + '_PHX'
+    lac_col = col + '_LAC'
+    for index, row in merge_df.iterrows():
+        if row[lac_col] < row[phx_col]:
+            merge_df.at[index, 'LAC_Points'] += 1
+        else:
+            merge_df.at[index, 'PHX_Points'] += 1
+
+# plotting the data
+merge_df = merge_df.drop(columns=['GAME_ID_LAC'])
+merge_df = merge_df.rename(columns={'GAME_ID_PHX': 'GAME'})
+merge_df.loc[merge_df.GAME == '0042000316', "GAME"] = 6
+merge_df.loc[merge_df.GAME == '0042000315', "GAME"] = 5
+merge_df.loc[merge_df.GAME == '0042000314', "GAME"] = 4
+merge_df.loc[merge_df.GAME == '0042000313', "GAME"] = 3
+merge_df.loc[merge_df.GAME == '0042000312', "GAME"] = 2
+merge_df.loc[merge_df.GAME == '0042000311', "GAME"] = 1
+
+merge_df = merge_df.sort_index(ascending=False, axis=0)
+
+print(merge_df)
