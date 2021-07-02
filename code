@@ -96,3 +96,13 @@ merge_df.loc[merge_df.GAME == '0042000311', "GAME"] = 1
 merge_df = merge_df.sort_index(ascending=False, axis=0)
 
 print(merge_df)
+
+# plotting statistical differential "Points"
+merge_df.plot(kind='bar', title='Stat Points', x='GAME', y=['LAC_Points', 'PHX_Points'])
+merge_df.plot(kind='bar', title="Shot Percentage", x='GAME', y=['FG_PCT_LAC', 'FG_PCT_PHX', 'FT_PCT_LAC', 'FT_PCT_LAC'])
+merge_df.plot(kind='bar', title='Rebounds, Assists, Steals, Blocks', x='GAME', y=['REB_LAC', 'REB_PHX', 'AST_LAC', 'AST_PHX',
+                                                              'STL_LAC', 'STL_PHX', 'BLK_LAC', 'BLK_PHX'])
+merge_df.plot(kind='bar', title='Turnovers and Fouls', x='GAME', y=['TOV_LAC', 'TOV_PHX', 'PF_LAC', 'PF_PHX'])
+
+plt.show()
+
